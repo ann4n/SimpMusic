@@ -23,6 +23,8 @@ jobs:
           echo "" >> ./gradle.properties
           echo "isFullBuild=false" >> ./gradle.properties
           touch ./local.properties
+          # arm64 only, to keep the artifact small enough to fetch over a slow link.
+          sed -i '/abiFilters.add("x86_64")/d; /abiFilters.add("armeabi-v7a")/d' androidApp/build.gradle.kts
       - name: Generate aboutLibraries.json
         run: ./gradlew exportLibraryDefinitions
       - name: Unit test VocalRemover
