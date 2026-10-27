@@ -1,0 +1,36 @@
+# Fork-only: builds an unsigned-for-release FOSS debug APK of this branch. No secrets, no release, no deploy.
+name: Debug APK (fork CI)
+on:
+  push:
+    branches: [ ci-debug-apk ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: "microsoft"
+          cache: 'gradle'
+      - name: FOSS build, empty local.properties
+        run: |
+          echo "" >> ./gradle.properties
+          echo "isFullBuild=false" >> ./gradle.properties
+          touch ./local.properties
+      - name: Generate aboutLibraries.json
+        run: ./gradlew exportLibraryDefinitions
+      - name: Unit test VocalRemover
+        run: ./gradlew :aiService:jvmTest
+      - name: Build debug APK
+        run: ./gradlew androidApp:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+          retention-days: 3
