@@ -20,6 +20,7 @@ import com.maxrave.domain.repository.AccountRepository
 import com.maxrave.domain.repository.ArtistRepository
 import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.CommonRepository
+import com.maxrave.domain.repository.InstrumentalRepository
 import com.maxrave.domain.repository.LyricsRomanizerRepository
 import com.maxrave.domain.repository.SongRepository
 import com.maxrave.domain.utils.LocalResource
@@ -33,6 +34,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -40,6 +42,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.lastOrNull
 import kotlinx.coroutines.flow.singleOrNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -52,6 +55,7 @@ import simpmusic.composeapp.generated.resources.backup_create_success
 import simpmusic.composeapp.generated.resources.backup_in_progress
 import simpmusic.composeapp.generated.resources.cancel
 import simpmusic.composeapp.generated.resources.clear_canvas_cache
+import simpmusic.composeapp.generated.resources.clear_instrumental_cache
 import simpmusic.composeapp.generated.resources.clear_listening_history
 import simpmusic.composeapp.generated.resources.clear_downloaded_cache
 import simpmusic.composeapp.generated.resources.clear_listening_history_done
@@ -78,6 +82,11 @@ class SettingsViewModel(
 ) : BaseViewModel() {
     private val databasePath: String? = commonRepository.getDatabasePath()
     private val downloadUtils: DownloadHandler by inject()
+    private val instrumentalRepository: InstrumentalRepository by inject()
+
+    val mvsepApiToken: StateFlow<String> = dataStoreManager.mvsepApiToken.stateIn(viewModelScope, SharingStarted.Eagerly, "")
+    private val _instrumentalCacheSize = MutableStateFlow<Long?>(null)
+    val instrumentalCacheSize: StateFlow<Long?> = _instrumentalCacheSize
 
     val castState: StateFlow<GenericCastState> get() = mediaPlayerHandler.castState
 
@@ -301,6 +310,7 @@ class SettingsViewModel(
         getUsingProxy()
         getCanvasCache()
         getTranslucentBottomBar()
+        getInstrumentalCache()
         getAutoCheckUpdate()
         getAIProvider()
         getAIApiKey()
@@ -854,6 +864,24 @@ class SettingsViewModel(
         viewModelScope.launch {
             dataStoreManager.setAutoCheckForUpdates(autoCheckUpdate)
             getAutoCheckUpdate()
+        }
+    }
+
+    fun setMvsepApiToken(token: String) {
+        viewModelScope.launch { dataStoreManager.setMvsepApiToken(token.trim()) }
+    }
+
+    private fun getInstrumentalCache() {
+        viewModelScope.launch {
+            _instrumentalCacheSize.value = instrumentalRepository.getCacheSize()
+        }
+    }
+
+    fun clearInstrumentalCache() {
+        viewModelScope.launch {
+            instrumentalRepository.clearCache()
+            makeToast(getString(Res.string.clear_instrumental_cache))
+            getInstrumentalCache()
         }
     }
 
